@@ -1,0 +1,4 @@
+{"_id":{"$oid":"5e61c285a9c08e5944a6c972"},"country":"US","format":["State","City","Zip Code","Address Line"]}
+{"_id":{"$oid":"5e61c285a9c08e5944a6c973"},"country":"China","format":["Province","City","Postal Code","Address Line"]}
+{"_id":{"$oid":"5e61c285a9c08e5944a6c974"},"country":"Denmark","format":["City","Postal Code","Country Code","Address Line"]}
+{"_id":{"$oid":"5e61c285a9c08e5944a6c975"},"country":"Canada","format":["Province","Municipality","Postal Code","Address Line"]}

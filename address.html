@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+
+<head>
+    <title>Address</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+
+<script>
+    var caret_1 = `<span class="caret" style="margin-left: 1em"></span>`;
+    var caret_2 = `<span class="caret" style="margin-top: 10px; float: right;"></span>`;
+</script>
+
+<div class="container">
+
+    <h2>ADDRESS PROJECT</h2>
+
+    <ul class="nav nav-tabs" style="margin: 1em">
+        <li id="recordTab" class="active"><a href="#" style="background-color: #428bca; color: white">RECORD</a></li>
+        <li id="searchTab"><a href="#" onclick="toggleNavTab()">SEARCH</a></li>
+    </ul>
+
+    <form class="form-inline" style="margin: 1em">
+        <span id="header_country">Country</span>
+        <span class="dropdown">
+            <button id="input_country" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                <span class="caret" style="margin-left: 1em"></span>
+            </button>
+            <ul id="dropdownCountry" class="dropdown-menu">
+                
+            </ul>
+        </span>
+    </form>
+
+    <table id="dynamicBody" style="margin: 1em;">
+        <tbody>
+           <!-- Boilerplate of body -->
+        </tbody>
+    </table>
+
+    <!--NEED TO PREVENT SUBMIT FROM EXECUTING WHEN NO COUNTRY IS SELECTED-->
+    <p><button id="submitBtn" type="button" class="btn btn-primary" style="width: 15%; float: right; margin-right: 1em" onclick="recordAddress()">SUBMIT</button></p>
+
+    <div id="searchResult" style="margin-top: 5em; margin-left: 1em"></div>
+
+</div>
+
+
+<script>
+    
+    //Key: order, Value: [header, input_id]
+    var all_element_ids = {};
+    all_element_ids[0] = ["Country", "input_country"];
+    var patternObj = {};
+</script>
+
+<script>
+    function toggleNavTab(){
+
+        if(recordTab.className == `active`){
+            recordTab.className = ``;
+            recordTab.innerHTML = `<a href="#" onclick="toggleNavTab()">RECORD</a></li>`;
+            
+
+            searchTab.className = `active`;
+            searchTab.innerHTML = `<a href="#" style="background-color: #428bca; color: white">SEARCH</a></li>`;
+            submitBtn.setAttribute('onclick',`validateComponent()`);
+        }else{
+            recordTab.className = `active`;
+            recordTab.innerHTML = `<a href="#" style="background-color: #428bca; color: white">RECORD</a></li>`;
+            
+
+            searchTab.className = ``;
+            searchTab.innerHTML = `<a href="#" onclick="toggleNavTab()">SEARCH</a></li>`;
+           submitBtn.setAttribute('onclick',`recordAddress()`);
+
+            searchResult.innerHTML = ``;
+        }
+        dynamicBody.innerHTML = ``;
+        input_country.innerHTML = ``;
+    }
+
+    function updateDynamicBody(country){
+        if(input_country.innerHTML.startsWith(country) || !patternObj[country]) return;
+        
+        const selectedPattern = patternObj[country];
+        
+        input_country.innerHTML = `${country}${caret_1}`;
+
+        var tempBody = '';
+        var order = 1;
+        var search_cmd = "";
+        
+        selectedPattern.forEach(each => {
+            if(typeof each == 'object' && each['head'] && each['body']){
+                //Populate country field
+                tempBody += `<tr><td>${each['head']}:</td><td><span class="dropdown"><button id="input_${each['head']}" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" style="text-align: left; width:500px">${each['body'][0]}</button><ul class="dropdown-menu">`;
+                each['body'].forEach(each2 => {
+                    tempBody += `<li><a href="#" onclick="input_${each['head']}.innerHTML='${each2}'">${each2}</a></li>`;
+                });
+                tempBody += `</ul></span></td></tr>`;
+            }else if(typeof each == 'string'){
+                //Populate dependent fields of country field except the last address text
+                if (document.getElementById(`searchTab`).className == `active`){
+                    if(order != selectedPattern.length){
+                        search_cmd = "onfocus= \"searchComponent(" + order + ")\"";
+                    }
+                }
+               
+                //Text field if on record tab or on search tab and last field
+                if(search_cmd == "" || (search_cmd != "" && order == selectedPattern.length)){
+                    tempBody += `<tr><td>${each}:</td><td><input id="input_${each}" type="text" ${search_cmd} class="form-control" placeholder="${each}" style="width:500px"></td>
+                    <td id="err_${each}"></td>
+                    </tr>`;
+                } else {
+                    tempBody += `
+                        <tr>
+                            <td>${each}:</td>
+                            <td>
+                                <span class="dropdown" ${search_cmd}>
+                                    <button id="input_${each}" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" style="text-align: left; width:500px"></button>
+                                    <ul class="dropdown-menu" id="options_${each}">
+
+                                    </ul>
+                                </span>
+                            </td>
+                            <td id="err_${each}"></td>
+                        </tr>
+                    `;
+                };
+
+                //Extract all field ids to be used for document.getElementbyId
+                all_element_ids[order] = [each, "input_" + each];
+                order += 1;
+            }
+        });
+        tempBody = `<tbody>${tempBody}</tbody>`;
+        document.getElementById(`dynamicBody`).innerHTML = tempBody;
+    }
+</script>
+
+<script>
+    function getPattern(){
+        const url     = 'http://localhost:8010/api';
+        const headers = { 'Content-Type': 'application/json' };
+        return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ api: 'get_patterns' }) }).then(response => {
+            return response.json();
+        }).then(data =>{
+            patternObj = data;
+            Object.keys(patternObj).forEach(key => {
+                document.getElementById(`dropdownCountry`).innerHTML += `<li><a href="#" onclick="updateDynamicBody('${key}')">${key}</a></li>`;
+            });
+        }).catch(err => {
+            // console.log(`${err.message}`);
+        });
+    }
+    getPattern();
+
+    function searchComponent(order){
+        var element_id = all_element_ids[order][1];
+        var element_option_id = all_element_ids[order][0];
+        var err_status = 0; //1: Error; 0: OK
+
+        //Check all previous fields
+        var iterate = order - 1;
+        while (iterate > 0){
+            var e = all_element_ids[iterate][0];
+            if(document.getElementById(`input_${e}`).innerHTML == ""){
+                err_status = 1;
+                var err_msg = "Missing/Invalid " +  e;
+                document.getElementById(`err_${e}`).innerHTML =  err_msg;
+            }
+            iterate -= 1;
+        }
+
+        //If all parents are filled out, call API to get the list of next element
+        if (err_status == 0) {
+
+            const api = `search_address`;
+            var body = {api: api};
+            var result_dropdown = "";
+            body["Search"] = all_element_ids[order][0];
+            var iterate_api = 0;
+            while (iterate_api < order){
+                var e_val;
+                if (iterate_api == 0) {
+                    e_val = document.getElementById(`${all_element_ids[iterate_api][1]}`).innerHTML;
+                    e_val = e_val.replace(caret_1, "");
+                }else {
+                    e_val = document.getElementById(`${all_element_ids[iterate_api][1]}`).innerHTML;
+                }
+                 
+                body[all_element_ids[iterate_api][0]] = e_val
+                iterate_api += 1;
+            }
+
+            //Call API to get a list of value in search component given other components
+            const url     = 'http://localhost:8010/api';
+            const headers = { 'Content-Type': 'application/json' };
+            return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) }).then(response => {
+                return response.json();
+            }).then(data =>{
+                if(api == 'search_address' && data){
+                    if(data["Result"].length > 0){
+                        data["Result"].forEach(each =>
+                            {result_dropdown += `<li><a href="#" onclick="document.getElementById('${element_id}').innerHTML='${each}'"}>${each}</a></li>`});
+                    }
+                }
+                document.getElementById(`options_${element_option_id}`).innerHTML = result_dropdown;
+                document.getElementById(`err_${element_option_id}`).innerHTML =  "";
+            }).catch(err => {
+                // console.log(`${err.message}`);
+            });
+       }
+    
+    }
+
+    function validateComponent(){
+        var order =  Object.keys(all_element_ids).length - 1;
+        var element_id = all_element_ids[order][1];
+        var element_option_id = all_element_ids[order][0];
+        var err_status = 0; //1: Error; 0: OK
+
+        //Check all previous fields
+        var iterate = order - 1;
+        while (iterate > 0 && order > 0){
+            var e = all_element_ids[iterate][0];
+            if(document.getElementById(`input_${e}`).innerHTML == ""){
+                err_status = 1;
+                var err_msg = "Missing/Invalid " +  e;
+                document.getElementById(`err_${e}`).innerHTML =  err_msg;
+            }
+            iterate -= 1;
+        }
+
+        //If all parents are filled out, call API to get the list of next element
+        if (err_status == 0) {
+
+            const api = `validate_address`;
+            var body = {api: api};
+            body["Search"] = all_element_ids[order][0];
+            var iterate_api = 0;
+            while (iterate_api <= order){
+                var e_val;
+                if (iterate_api == 0) {
+                    e_val = document.getElementById(`${all_element_ids[iterate_api][1]}`).innerHTML;
+                    e_val = e_val.replace(caret_1, "");
+                }else if (iterate_api == order){
+                    e_val = document.getElementById(`${all_element_ids[iterate_api][1]}`).value;
+                } else {
+                    e_val = document.getElementById(`${all_element_ids[iterate_api][1]}`).innerHTML;
+                }
+                 
+                body[all_element_ids[iterate_api][0]] = e_val
+                iterate_api += 1;
+            }
+
+            //Call API to get a list of value in search component given other components
+            const url     = 'http://localhost:8010/api';
+            const headers = { 'Content-Type': 'application/json' };
+            return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) }).then(response => {
+                return response.json();
+            }).then(data =>{
+                if(api == 'validate_address' && data){
+                    var err_msg = "Address is not valid :(!";
+                    if(Object.keys(data).length > 0){
+                        err_msg = "ALL VALID!!!";
+                    }
+                }
+                document.getElementById(`err_${all_element_ids[order][0]}`).innerHTML =  err_msg;
+                
+            }).catch(err => {
+                console.log(`${err.message}`);
+            });
+       }
+    }
+
+    function recordAddress(){
+        const api = document.getElementById(`recordTab`).className == `active` ? `record_address` : `search_address`;
+
+        var body = { api: api }
+        Object.keys(all_element_ids).forEach(key => {
+            if(all_element_ids[key][0] == 'Country'){
+                var data = document.getElementById(all_element_ids[key][1]).innerHTML
+                data = data.substring(0, data.indexOf('<'));
+                body[all_element_ids[key][0]] = data;
+            }else{
+                var data = document.getElementById(all_element_ids[key][1]).value;
+                body[all_element_ids[key][0]] = data;
+            }
+            
+        });
+
+        const url     = 'http://localhost:8010/api';
+        const headers = { 'Content-Type': 'application/json' };
+        return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) }).then(response => {
+            return response.json();
+        }).then(data =>{
+            // console.log(data);
+            document.body.style.backgroundColor = 'white';
+        }).catch(err => {
+            document.body.style.backgroundColor = 'red';
+            // console.log(`${err.message}`);
+        });
+    }
+</script>
+
+</body>
+</html>
